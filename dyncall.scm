@@ -7,12 +7,14 @@
 (module dyncall
 *
 (import scheme chicken foreign)
+(use alist-lib)
+
 (define-foreign-type dl-lib      (c-pointer "DLLib"))
 (define-foreign-type dl-syms     (c-pointer "DLSyms"))
 (define-foreign-type dc-vm       (c-pointer "DCCallVM"))
 (define-foreign-type dc-struct   (c-pointer "DCstruct"))
 (define-foreign-type dc-callback (c-pointer "DCCallback"))
-(define-foreign-type dc-args     (c-pointer "DCArgs"))
+(define-foreign-type dc-args     (c-pointer "struct DCArgs"))
 (define-foreign-type dc-value    (c-pointer "DCValue"))
 
 (define-foreign-type dc-handler (function char (dc-callback dc-args dc-value c-pointer)))
@@ -73,6 +75,8 @@
   (foreign-lambda c-pointer dcCallPointer  dc-vm c-pointer))
 (define vm-call-cstring
   (foreign-lambda c-string  dcCallPointer  dc-vm c-pointer))
+(define vm-call-cobject
+  (foreign-lambda scheme-object  dcCallPointer  dc-vm c-pointer))
 (define vm-call-struct
   (foreign-lambda void      dcCallStruct   dc-vm c-pointer dc-struct c-pointer))
 
@@ -113,6 +117,8 @@
 
 (define dcb-new-callback
   (foreign-lambda dc-callback dcbNewCallback c-string dc-handler c-pointer))
+(define dcb-new-callback*
+  (foreign-lambda dc-callback dcbNewCallback c-string dc-handler scheme-object))
 (define dcb-init-callback
   (foreign-lambda void dcInitCallback dc-callback c-string dc-handler c-pointer))
 (define dcb-free-callback
@@ -148,6 +154,9 @@
   (foreign-lambda c-pointer dcbArgPointer dc-args))
 
 
+(import-for-syntax alist-lib)
+
+
 (define-syntax dyncall*
   (er-macro-transformer
    (lambda (x r c)
@@ -178,7 +187,8 @@
 	   (%vm-call-float (r 'vm-call-float))
 	   (%vm-call-double (r 'vm-call-double))
 	   (%vm-call-pointer (r 'vm-call-pointer))
-	   (%vm-call-cstring (r 'vm-call-cstring)))
+	   (%vm-call-cstring (r 'vm-call-cstring))
+	   (%vm-call-cobject (r 'vm-call-cobject)))
 
        `(,%begin
 	  (,%vm-reset vm)
@@ -195,7 +205,8 @@
 		 ((float)     `(,%vm-float-arg    ,vm ,value))
 		 ((double)    `(,%vm-double-arg   ,vm ,value))
 		 ((c-pointer) `(,%vm-pointer-arg  ,vm ,value))
-		 ((c-string)  `(,%vm-cstring-arg  ,vm ,value)))))
+		 ((c-string)  `(,%vm-cstring-arg  ,vm ,value))
+)))
 	   arg-map)
 	  ,(case return-type
 	     ((void)      `(,%vm-call-void     ,vm ,func-ptr))
@@ -208,7 +219,8 @@
 	     ((float)     `(,%vm-call-float    ,vm ,func-ptr))
 	     ((double)    `(,%vm-call-double   ,vm ,func-ptr))
 	     ((c-pointer) `(,%vm-call-pointer  ,vm ,func-ptr))
-	     ((c-string)  `(,%vm-call-cstring  ,vm ,func-ptr))))))))
+	     ((c-string)  `(,%vm-call-cstring  ,vm ,func-ptr))
+	     ((scheme-object)  `(,%vm-call-cobject  ,vm ,func-ptr))))))))
 
 (define-syntax dyncall
   (er-macro-transformer
@@ -268,7 +280,10 @@
 	 (if (list? sym-spec)
 	     `(,%let ((func-ptr (,%dl-find-symbol ,lib-ptr ,sym-name)))
 		(,%dyncall-lambda ,return-type func-ptr ,@arg-types))
-	     (error 'dyncall-lambda "cached lib lookup not implemented" '(exn dyncall)))))))))
+	     (error 'dyncall-lambda "cached lib lookup not implemented" '(exn dyncall))))))))
+
+(import-for-syntax alist-lib)
+(begin-for-syntax (require 'alist-lib))
 
 (define-for-syntax signature-mapping
   '((void   . #\v)
@@ -286,9 +301,11 @@
     (unsigned-long  . #\J)
     (unsigned-int64 . #\L)
     (c-pointer . #\p)
+    (scheme-object . #\p)
     (c-string  . #\Z)
     (struct    . #\T)
     (end       . #\))))
+
 
 (define-for-syntax (sigsym->sigchar type-sym)
   (alist-ref signature-mapping type-sym))
@@ -309,3 +326,4 @@
 	   (let ((return-type (car (reverse syms)))
 		 (arg-types (reverse (cddr (reverse syms)))))
 	     `(,return-type ,arg-types)))))))
+)

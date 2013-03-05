@@ -154,19 +154,41 @@
 (define dl-syms-name
   (foreign-lambda c-string     dlSymsName          dynload-syms int))
 (define dl-syms-name-from-value
-  (foreign-lambda c-string     dlSymsNameFromValue dynload-syms c-pointer)))
-
+  (foreign-lambda c-string     dlSymsNameFromValue dynload-syms c-pointer))
 
 (define-syntax dyncall
-  (syntax-rules ()
-    ((_ return-type func-ptr (type value) ...)
-     (let ((vm (make-vm 5)))
-       (vm-mode vm 0)
-       (vm-reset vm)
-       (case 'type
-	 ((c-pointer) (vm-pointer-arg vm value)))...
-       (let ((return-value
-	      (case 'return-type
-		((c-pointer) (vm-call-pointer vm func-ptr)))))
-	 (free-vm vm)
-	 return-value)))))
+  (er-macro-transformer
+   (lambda (x r c)
+     (let ((return-type (cadr x))
+	   (func-ptr (caddr x))
+	   (arg-map (cdddr x)))
+
+       `(let ((vm (make-vm ,(length arg-map))))
+	  (vm-mode vm 0) (vm-reset vm)
+	  ,@(map (lambda (arg)
+		   (let ((type  (car  arg))
+			 (value (cadr arg)))
+		     (case type
+		       ((bool)      `(vm-bool-arg     vm ,value))
+		       ((char)      `(vm-char-arg     vm ,value))
+		       ((short)     `(vm-short-arg    vm ,value))
+		       ((int)       `(vm-int-arg      vm ,value))
+		       ((long)      `(vm-long-arg     vm ,value))
+		       ((longlong)  `(vm-longlong-arg vm ,value))
+		       ((float)     `(vm-float-arg    vm ,value))
+		       ((double)    `(vm-double-arg   vm ,value))
+		       ((c-pointer) `(vm-pointer-arg  vm ,value)))))
+		 arg-map)
+	  (let ((return-value
+		 ,(case return-type
+		    ((bool)      `(vm-call-bool     vm ,func-ptr))
+		    ((char)      `(vm-call-char     vm ,func-ptr))
+		    ((short)     `(vm-call-short    vm ,func-ptr))
+		    ((int)       `(vm-call-int      vm ,func-ptr))
+		    ((long)      `(vm-call-long     vm ,func-ptr))
+		    ((longlong)  `(vm-call-longlong vm ,func-ptr))
+		    ((float)     `(vm-call-float    vm ,func-ptr))
+		    ((double)    `(vm-call-double   vm ,func-ptr))
+		    ((c-pointer) `(vm-call-pointer  vm ,func-ptr)))))
+	    (free-vm vm)
+	    return-value))))))

@@ -181,6 +181,7 @@
 		 arg-map)
 	  (let ((return-value
 		 ,(case return-type
+		    ((void)      `(vm-call-void     vm ,func-ptr))
 		    ((bool)      `(vm-call-bool     vm ,func-ptr))
 		    ((char)      `(vm-call-char     vm ,func-ptr))
 		    ((short)     `(vm-call-short    vm ,func-ptr))

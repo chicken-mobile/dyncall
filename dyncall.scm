@@ -243,4 +243,23 @@
 	      (arg-map (map (lambda (type name) `(,type ,name)) arg-types arg-names)))
 	 `(,%let ((ptr ,func-ptr))
 	    (,%lambda ,arg-names
-	      (,%dyncall ,return-type ptr ,@arg-map)))))))))
+	      (,%dyncall ,return-type ptr ,@arg-map))))))))
+
+(define-syntax dyncall-lambda*
+  (er-macro-transformer
+   (lambda (x r c)
+     (let ((return-type (cadr x))
+	   (sym-spec (caddr x))
+	   (arg-types (cdddr x)))
+
+       (let ((lib-ptr (car sym-spec))
+	     (sym-name (symbol->string (cadr sym-spec)))
+
+	     (%let (r 'let))
+	     (%dl-find-symbol (r 'dl-find-symbol))
+	     (%dyncall-lambda (r 'dyncall-lambda)))
+
+	 (if (list? sym-spec)
+	     `(,%let ((func-ptr (,%dl-find-symbol ,lib-ptr ,sym-name)))
+		(,%dyncall-lambda ,return-type func-ptr ,@arg-types))
+	     (error 'dyncall-lambda "cached lib lookup not implemented" '(exn dyncall)))))))))

@@ -154,6 +154,19 @@
 (define dl-syms-name
   (foreign-lambda c-string     dlSymsName          dynload-syms int))
 (define dl-syms-name-from-value
-  (foreign-lambda c-string     dlSymsNameFromValue dynload-syms c-pointer))
+  (foreign-lambda c-string     dlSymsNameFromValue dynload-syms c-pointer)))
 
-)
+
+(define-syntax dyncall
+  (syntax-rules ()
+    ((_ return-type func-ptr (type value) ...)
+     (let ((vm (make-vm 5)))
+       (vm-mode vm 0)
+       (vm-reset vm)
+       (case 'type
+	 ((c-pointer) (vm-pointer-arg vm value)))...
+       (let ((return-value
+	      (case 'return-type
+		((c-pointer) (vm-call-pointer vm func-ptr)))))
+	 (free-vm vm)
+	 return-value)))))

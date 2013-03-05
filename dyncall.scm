@@ -218,7 +218,7 @@
 		    ((double)    `(,%vm-call-double   vm ,func-ptr))
 		    ((c-pointer) `(,%vm-call-pointer  vm ,func-ptr)))))
 	    (free-vm vm)
-	    return-value)))))))
+	    return-value))))))
 
 (define-syntax dyncall-lambda
   (er-macro-transformer
@@ -232,7 +232,7 @@
 	   (%dyncall (r 'dyncall)))
 
        (let* ((arg-names (map (lambda (i) (string->symbol (format "a~A" i))) (iota (length arg-types))))
-	      (arg-map (map (lambda (type name) (type name)) arg-types arg-names)))
+	      (arg-map (map (lambda (type name) `(,type ,name)) arg-types arg-names)))
 	 `(,%let ((ptr ,func-ptr))
 	    (,%lambda ,arg-names
-	      (dyncall ,return-type ptr ,@arg-map))))))))
+	      (,%dyncall ,return-type ptr ,@arg-map)))))))))

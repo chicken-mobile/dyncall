@@ -96,6 +96,8 @@
   (foreign-lambda void dcArgDouble   dyncall-vm dyncall-double))
 (define vm-pointer-arg
   (foreign-lambda void dcArgPointer  dyncall-vm dyncall-pointer))
+(define vm-cstring-arg
+  (foreign-lambda void dcArgPointer  dyncall-vm c-string))
 (define vm-struct-arg
   (foreign-lambda void dcArgStruct   dyncall-vm dyncall-struct dyncall-pointer))
 
@@ -119,6 +121,8 @@
   (foreign-lambda dyncall-double   dcCallDouble   dyncall-vm dyncall-pointer))
 (define vm-call-pointer
   (foreign-lambda dyncall-pointer  dcCallPointer  dyncall-vm dyncall-pointer))
+(define vm-call-cstring
+  (foreign-lambda c-string         dcCallPointer  dyncall-vm dyncall-pointer))
 (define vm-call-struct
   (foreign-lambda void              dcCallStruct   dyncall-vm dyncall-pointer dyncall-struct dyncall-pointer))
 
@@ -178,6 +182,7 @@
 	   (%vm-float-arg (r 'vm-float-arg))
 	   (%vm-double-arg (r 'vm-double-arg))
 	   (%vm-pointer-arg (r 'vm-pointer-arg))
+	   (%vm-cstring-arg (r 'vm-cstring-arg))
 	   (%vm-call-void (r 'vm-call-void))
 	   (%vm-call-bool (r 'vm-call-bool))
 	   (%vm-call-char (r 'vm-call-char))
@@ -187,7 +192,8 @@
 	   (%vm-call-longlong (r 'vm-call-longlong))
 	   (%vm-call-float (r 'vm-call-float))
 	   (%vm-call-double (r 'vm-call-double))
-	   (%vm-call-pointer (r 'vm-call-pointer)))
+	   (%vm-call-pointer (r 'vm-call-pointer))
+	   (%vm-call-cstring (r 'vm-call-cstring)))
 
        `(,%let ((vm (,%make-vm ,(length arg-map))))
 	  (,%vm-mode vm 0) (,%vm-reset vm)
@@ -203,7 +209,8 @@
 		       ((longlong)  `(,%vm-longlong-arg vm ,value))
 		       ((float)     `(,%vm-float-arg    vm ,value))
 		       ((double)    `(,%vm-double-arg   vm ,value))
-		       ((c-pointer) `(,%vm-pointer-arg  vm ,value)))))
+		       ((c-pointer) `(,%vm-pointer-arg  vm ,value))
+		       ((c-string)  `(,%vm-cstring-arg  vm ,value)))))
 		 arg-map)
 	  (,%let ((return-value
 		 ,(case return-type
@@ -216,7 +223,8 @@
 		    ((longlong)  `(,%vm-call-longlong vm ,func-ptr))
 		    ((float)     `(,%vm-call-float    vm ,func-ptr))
 		    ((double)    `(,%vm-call-double   vm ,func-ptr))
-		    ((c-pointer) `(,%vm-call-pointer  vm ,func-ptr)))))
+		    ((c-pointer) `(,%vm-call-pointer  vm ,func-ptr))
+		    ((c-string)  `(,%vm-call-cstring  vm ,func-ptr)))))
 	    (free-vm vm)
 	    return-value))))))
 

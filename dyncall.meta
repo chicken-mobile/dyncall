@@ -1,0 +1,6 @@
+;; -*- scheme -*-
+
+((license "BSD License")
+ (category lang-exts)
+ (author "bevuta IT GmbH (Patrick Brauer)")
+ (synopsis "dyncall Bindings for Chicken Scheme"))

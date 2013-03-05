@@ -1,0 +1,8 @@
+;; -*- scheme -*-
+
+(compile -ldyncall_s -ldynload_s -s dyncall.scm -J)
+(compile -s dyncall.import.scm)
+
+(install-extension 'dyncall
+  '("dyncall.so" "dyncall.import.so")
+  '((version "0.1")))

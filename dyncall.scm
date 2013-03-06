@@ -160,18 +160,16 @@
 (define dl-syms-name-from-value
   (foreign-lambda c-string     dlSymsNameFromValue dynload-syms c-pointer))
 
-(define-syntax dyncall
+
+(define-syntax dyncall*
   (er-macro-transformer
    (lambda (x r c)
-     (let ((return-type (cadr x))
-	   (func-ptr (caddr x))
-	   (arg-map (cdddr x))
+     (let ((vm (cadr x))
+	   (return-type (caddr x))
+	   (func-ptr (cadddr x))
+	   (arg-map (cddddr x))
 
-	   (%let (r 'let))
-	   (%length (r 'length))
-	   (%make-vm (r 'make-vm))
-	   (%free-vm (r 'free-vm))
-	   (%vm-mode (r 'vm-mode))
+	   (%begin (r 'begin))
 	   (%vm-reset (r 'vm-reset))
 	   (%vm-bool-arg (r 'vm-bool-arg))
 	   (%vm-char-arg (r 'vm-char-arg))
@@ -195,38 +193,55 @@
 	   (%vm-call-pointer (r 'vm-call-pointer))
 	   (%vm-call-cstring (r 'vm-call-cstring)))
 
-       `(,%let ((vm (,%make-vm ,(length arg-map))))
-	  (,%vm-mode vm 0) (,%vm-reset vm)
+       `(,%begin
+	  (,%vm-reset vm)
 	  ,@(map (lambda (arg)
-		   (let ((type  (car  arg))
-			 (value (cadr arg)))
-		     (case type
-		       ((bool)      `(,%vm-bool-arg     vm ,value))
-		       ((char)      `(,%vm-char-arg     vm ,value))
-		       ((short)     `(,%vm-short-arg    vm ,value))
-		       ((int)       `(,%vm-int-arg      vm ,value))
-		       ((long)      `(,%vm-long-arg     vm ,value))
-		       ((longlong)  `(,%vm-longlong-arg vm ,value))
-		       ((float)     `(,%vm-float-arg    vm ,value))
-		       ((double)    `(,%vm-double-arg   vm ,value))
-		       ((c-pointer) `(,%vm-pointer-arg  vm ,value))
-		       ((c-string)  `(,%vm-cstring-arg  vm ,value)))))
-		 arg-map)
-	  (,%let ((return-value
-		 ,(case return-type
-		    ((void)      `(,%vm-call-void     vm ,func-ptr))
-		    ((bool)      `(,%vm-call-bool     vm ,func-ptr))
-		    ((char)      `(,%vm-call-char     vm ,func-ptr))
-		    ((short)     `(,%vm-call-short    vm ,func-ptr))
-		    ((int)       `(,%vm-call-int      vm ,func-ptr))
-		    ((long)      `(,%vm-call-long     vm ,func-ptr))
-		    ((longlong)  `(,%vm-call-longlong vm ,func-ptr))
-		    ((float)     `(,%vm-call-float    vm ,func-ptr))
-		    ((double)    `(,%vm-call-double   vm ,func-ptr))
-		    ((c-pointer) `(,%vm-call-pointer  vm ,func-ptr))
-		    ((c-string)  `(,%vm-call-cstring  vm ,func-ptr)))))
-	    (free-vm vm)
-	    return-value))))))
+	     (let ((type  (car  arg))
+		   (value (cadr arg)))
+	       (case type
+		 ((bool)      `(,%vm-bool-arg     vm ,value))
+		 ((char)      `(,%vm-char-arg     vm ,value))
+		 ((short)     `(,%vm-short-arg    vm ,value))
+		 ((int)       `(,%vm-int-arg      vm ,value))
+		 ((long)      `(,%vm-long-arg     vm ,value))
+		 ((longlong)  `(,%vm-longlong-arg vm ,value))
+		 ((float)     `(,%vm-float-arg    vm ,value))
+		 ((double)    `(,%vm-double-arg   vm ,value))
+		 ((c-pointer) `(,%vm-pointer-arg  vm ,value))
+		 ((c-string)  `(,%vm-cstring-arg) vm ,value))))
+	   arg-map)
+	  ,(case return-type
+	     ((void)      `(,%vm-call-void     ,vm ,func-ptr))
+	     ((bool)      `(,%vm-call-bool     ,vm ,func-ptr))
+	     ((char)      `(,%vm-call-char     ,vm ,func-ptr))
+	     ((short)     `(,%vm-call-short    ,vm ,func-ptr))
+	     ((int)       `(,%vm-call-int      ,vm ,func-ptr))
+	     ((long)      `(,%vm-call-long     ,vm ,func-ptr))
+	     ((longlong)  `(,%vm-call-longlong ,vm ,func-ptr))
+	     ((float)     `(,%vm-call-float    ,vm ,func-ptr))
+	     ((double)    `(,%vm-call-double   ,vm ,func-ptr))
+	     ((c-pointer) `(,%vm-call-pointer  ,vm ,func-ptr))
+	     ((c-string)  `(,%vm-call-cstring  ,vm ,func-ptr))))))))
+
+(define-syntax dyncall
+  (er-macro-transformer
+   (lambda (x r c)
+     (let ((return-type (cadr x))
+	   (func-ptr (caddr x))
+	   (arg-map (cdddr x))
+
+	   (%let (r 'let))
+	   (%length (r 'length))
+	   (%make-vm (r 'make-vm))
+	   (%free-vm (r 'free-vm))
+	   (%vm-mode (r 'vm-mode))
+	   (%dyncall* (r 'dyncall*)))
+
+       `(,%let ((vm (,%make-vm ,(length arg-map))))
+	  (,%vm-mode vm 0)
+	    (,%let ((return-value (,%dyncall* vm ,return-type ,func-ptr ,@arg-map)))
+	      (,%free-vm vm)
+	      return-value))))))
 
 (define-syntax dyncall-lambda
   (er-macro-transformer
@@ -237,13 +252,17 @@
 	   
 	   (%let  (r 'let))
 	   (%lambda (r 'lambda))
-	   (%dyncall (r 'dyncall)))
+	   (%make-vm (r 'make-vm))
+	   (%vm-mode (r 'vm-mode))
+	   (%dyncall* (r 'dyncall*)))
 
        (let* ((arg-names (map (lambda (i) (string->symbol (format "a~A" i))) (iota (length arg-types))))
 	      (arg-map (map (lambda (type name) `(,type ,name)) arg-types arg-names)))
-	 `(,%let ((ptr ,func-ptr))
+	 `(,%let ((vm (,%make-vm ,(length arg-types)))
+		  (ptr ,func-ptr))
+	    (,%vm-mode vm 0)
 	    (,%lambda ,arg-names
-	      (,%dyncall ,return-type ptr ,@arg-map))))))))
+	      (,%dyncall* vm ,return-type ptr ,@arg-map))))))))
 
 (define-syntax dyncall-lambda*
   (er-macro-transformer

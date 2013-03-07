@@ -1,15 +1,22 @@
 #>
-#include <dyncall.h>
 #include <dynload.h>
+#include <dyncall.h>
+#include <dyncall_callback.h>
 <#
 
 (module dyncall
 *
 (import scheme chicken foreign)
-(define-foreign-type dl-lib    (c-pointer "DLLib"))
-(define-foreign-type dl-syms   (c-pointer "DLSyms"))
-(define-foreign-type dc-vm     (c-pointer "DCCallVM"))
-(define-foreign-type dc-struct (c-pointer "DCstruct"))
+(define-foreign-type dl-lib      (c-pointer "DLLib"))
+(define-foreign-type dl-syms     (c-pointer "DLSyms"))
+(define-foreign-type dc-vm       (c-pointer "DCCallVM"))
+(define-foreign-type dc-struct   (c-pointer "DCstruct"))
+(define-foreign-type dc-callback (c-pointer "DCCallback"))
+(define-foreign-type dc-args     (c-pointer "DCArgs"))
+(define-foreign-type dc-value    (c-pointer "DCValue"))
+
+(define-foreign-type dc-handler (function char (dc-callback dc-args dc-value c-pointer)))
+
 
 (define make-vm
   (foreign-lambda dc-vm dcNewCallVM size_t))
@@ -102,6 +109,43 @@
   (foreign-lambda c-string dlSymsName          dl-syms int))
 (define dl-syms-name-from-value
   (foreign-lambda c-string dlSymsNameFromValue dl-syms c-pointer))
+
+
+(define dcb-new-callback
+  (foreign-lambda dc-callback dcbNewCallback c-string dc-handler c-pointer))
+(define dcb-init-callback
+  (foreign-lambda void dcInitCallback dc-callback c-string dc-handler c-pointer))
+(define dcb-free-callback
+  (foreign-lambda void dcFreeCallback dc-callback))
+
+(define dcb-arg-bool
+  (foreign-lambda bool dcbArgBool dc-args))
+(define dcb-arg-char
+  (foreign-lambda char dcbArgChar dc-args))
+(define dcb-arg-short
+  (foreign-lambda short dcbArgShort dc-args))
+(define dcb-arg-int
+  (foreign-lambda int dcbArgInt dc-args))
+(define dcb-arg-long
+  (foreign-lambda long dcbArgLong dc-args))
+(define dcb-arg-longlong
+  (foreign-lambda integer64 dcbArgLongLong dc-args))
+(define dcb-arg-uchar
+  (foreign-lambda unsigned-char dcbArgUChar dc-args))
+(define dcb-arg-ushort
+  (foreign-lambda unsigned-short dcbArgUShort dc-args))
+(define dcb-arg-uint
+  (foreign-lambda unsigned-int dcbArgUInt dc-args))
+(define dcb-arg-ulong
+  (foreign-lambda unsigned-long dcbArgULong dc-args))
+(define dcb-arg-ulonglong
+  (foreign-lambda unsigned-integer64 dcbArgULongLong dc-args))
+(define dcb-arg-float
+  (foreign-lambda float dcbArgFloat dc-args))
+(define dcb-arg-double
+  (foreign-lambda double dcbArgDouble dc-args))
+(define dcb-arg-pointer
+  (foreign-lambda c-pointer dcbArgPointer dc-args))
 
 
 (define-syntax dyncall*

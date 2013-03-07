@@ -200,7 +200,7 @@
 	   (%dyncall* (r 'dyncall*)))
 
        (let* ((arg-names (map (lambda (i) (string->symbol (format "a~A" i))) (iota (length arg-types))))
-	      (arg-map (map (lambda (type name) `(,type ,name)) arg-types arg-names)))
+	      (arg-map (zip arg-types arg-names)))
 	 `(,%let ((vm (,%make-vm ,(length arg-types)))
 		  (ptr ,func-ptr))
 	    (,%vm-mode vm 0)

@@ -34,16 +34,44 @@ extern char chicken_callback(DCCallback* pcb, DCArgs* args, DCValue* result, voi
   return(0);
 }
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+
+void* delayed_dispatch(void* foo){
+  typedef void (*fptr)(float, int, int);
+  fptr gptr = (fptr) foo;  
+    
+  sleep(5);
+  gptr(0.1, 2, 3);
+  printf("whooooot?\n");
+}
+
+void dispatch_later(void* func_ptr){
+  pthread_t delay_thread;
+  pthread_create(&delay_thread, NULL, delayed_dispatch, func_ptr);
+}
+
 <#
+
+(define dispatch-later
+  (foreign-lambda void dispatch_later (c-pointer void)))
+
+(define (callin)
+  (print "here is clalin :)"))
+
+
+
+
+
+
 
 (use dyncall srfi-1 srfi-18 posix extras alist-lib expand-full)
 
 (define-foreign-type dc-args     (c-pointer "struct DCArgs"))
 (define chicken-callback
   (foreign-value "&chicken_callback" (function char (c-pointer c-pointer c-pointer c-pointer))))
-
-(define chicken-callin
-  (foreign-safe-lambda* c-pointer (dc-args) ))
 
 (define hatchi '(1 2 3 4))
 
@@ -62,6 +90,7 @@ extern char chicken_callback(DCCallback* pcb, DCArgs* args, DCValue* result, voi
   (pp sig)
   (pp callback)
 
+  (dispatch-later callback)
 
 ;;  (pp call-args)
   
@@ -98,11 +127,14 @@ extern char chicken_callback(DCCallback* pcb, DCArgs* args, DCValue* result, voi
 	    (loop)))))))
   (mutex-unlock! miau ready)
 
+(thread-sleep! 10)
+
+#;
   (let loop ()
     (print "lets wake him up!")
     (pp (dyncall scheme-object callback (float 0.123) (int 1) (int 2)))
     (mutex-unlock! miau ready)
- 
+    
     (pp "foo?")
     (pp (testonto))
 

@@ -1,3 +1,29 @@
+(use expand-full dyncall)
+(import-for-syntax chicken) 
+
+(define-syntax callback-lambda
+  (er-macro-transformer
+   (lambda (x r c)
+     (let ((arg-map (cadr x))
+	   (return-type (caddr x))
+	   (body (cdddr x)))
+
+       (receive (arg-types arg-names) (unzip2 arg-map)
+		(let ((sig `(,return-type ,arg-types)))
+		  `(let* ((gcr   (make-gc-root))
+			  (func-ptr (dcb-new-callback (signature ,sig) chicken-callback gcr))
+			  (proc (extend-procedure ,(append `(lambda ,arg-names) body)
+						  (make-callback func-ptr ',return-type ',arg-types gcr))))
+		     (gc-root-set! gcr proc) proc)))))))
+
+
+
+
+
+#;
+(ppexpand* '(callback-lambda ((float f) (int i) (int ii)) void
+	      (print (format "~A + ~A + ~A = ~A" f i ii (+ f i ii)))))
+
 #>
 #include "suppe.c"
 <#
@@ -39,13 +65,6 @@
 	   (thread-wait-for-i/o! in)
 	   (read-char in*)
 
-
-	   (pp callback_args)
-;;	   (pp (dcb-arg-float callback_args))
-;;	   (pp (dcb-arg-int callback_args))
-;;	   (pp (dcb-arg-int callback_args))
-	   (pp (gc-root-ref callback))
-
 	   (let ((wurst (apply (gc-root-ref callback)
 			       `(,(dcb-arg-float callback_args)
 				 ,(dcb-arg-int   callback_args)
@@ -54,6 +73,7 @@
 
 	   (write-char #\- out*)
 	   (flush-output   out*)
+	   (flush-output)
 
 	   (loop)))))))
 
@@ -72,7 +92,7 @@
 
 
 
-(define-record callback signature pointer gc-root)
+(define-record callback pointer return-type arg-types  gc-root)
 
 (define (proc->pointer foo)
   (callback-pointer (procedure-data foo)))
@@ -83,47 +103,15 @@
   (foreign-lambda void dispatch_later chicken-callback))
 
 
-(let ((testo (make-gc-root)))
 
-  (let* ((sig '(void (float int int)))       
-	 (proc (lambda (f i ii) (print "baaaam!") 42))       
-	 (gcr (make-gc-root)))
-    (gc-root-set! gcr proc)
+(let ((foodo (callback-lambda ((float f) (int i) (int ii)) void
+	       (print (format "~A + ~A + ~A = ~A" f i ii (+ f i ii))))))
 
-    (let ((func_ptr (dcb-new-callback (signature (void (float int int))) chicken-callback gcr)))
-      (set! proc (extend-procedure proc (make-callback sig func_ptr gcr)))
+  (pp (foodo 555.2 2 3))
+  (thread-sleep! 1)
 
-      (proc 0.1 2 3)
-      (dispatch-later proc)
-
-      (thread-join! callback-thread))))
-
-
-
-;; (pp (gc-root-ref (global-lookup "make-gc-root")))
-;; (define-record callback signature pointer gc-root)
-
-
-;; (let* ((sig (void (float int int)))       
-;;        (proc (lambda (f i ii) (print "baaaam!")))       
-;;        (gcr (make-gc-root)))
-;;   (gc-root-set! gcr proc)
-
-;;   (let ((func_ptr (dcb-new-callback (signature sig) chicken-callback gcr)))
-;;     (extend-procedure! proc (make-callback sig func_ptr gcr))))
-
-
-;; (let ((callback (dcb-new-callback (signature (void (float int int))) chicken-callback testo)))
-;;   (let loop ()
-;;     (thread-sleep! 1)
-;;     (dispatch-later callback)
-;;     (flush-output)
-;;     (thread-sleep! 1)))
-
-;; (let ((callin (callback-lambda void ((float f) (int i) (int ii))
-;; 	        (print (format "~A + ~A + ~A = ~A" f i ii (+ f i ii))))))
-;;   (callin 0.1 2 3)
-;;   (dispatch-later callin))
+  (dispatch-later foodo)
+  (thread-join! callback-thread))
 
 
 

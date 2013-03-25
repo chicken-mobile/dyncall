@@ -14,7 +14,6 @@ DCValue* callback_result;
 void* callback;
 
 char dyncall_chicken_callback(DCCallback* pcb, DCArgs* args, DCValue* result, void* hmmm){
-  printf("jajaajajajjaja\n");
   callback_args = args;  
   callback = hmmm;
 
@@ -23,16 +22,14 @@ char dyncall_chicken_callback(DCCallback* pcb, DCArgs* args, DCValue* result, vo
   write(callback_pipe_fd_out, "-", 1);
   read(callback_pipe_fd_in, readbuffer, 1);
 
-  printf("foooooooooo");
-
   return('v');
 }
 
+typedef void (*fptr)(float, int, int);
+
 void* delayed_dispatch(void* foo){
-  typedef void (*fptr)(float, int, int);
   fptr gptr = (fptr) foo;  
-  
-  gptr(0.1, 2, 3);
+  gptr(12345.678, 9, 10);
 }
 
 void dispatch_later(void* func_ptr){
